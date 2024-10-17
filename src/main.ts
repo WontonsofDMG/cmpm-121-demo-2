@@ -8,12 +8,15 @@ app.innerHTML = `
   <h1>${APP_NAME}</h1>
   <canvas id="myCanvas" width="256" height="256"></canvas>
   <button id="clearButton">Clear</button>
+  <button id="undoButton">Undo</button>
+  <button id="redoButton">Redo</button>
 `;
 
 const canvas = document.querySelector<HTMLCanvasElement>("#myCanvas")!;
 const ctx = canvas.getContext("2d")!;
 let drawing = false;
 let lines: { x: number, y: number }[][] = [];
+let redoStack: { x: number, y: number }[][] = [];
 let currentLine: { x: number, y: number }[] = [];
 
 canvas.addEventListener("mousedown", () => {
@@ -55,5 +58,22 @@ canvas.addEventListener("drawing-changed", () => {
 
 document.querySelector<HTMLButtonElement>("#clearButton")!.addEventListener("click", () => {
   lines = [];
+  redoStack = [];
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+});
+
+document.querySelector<HTMLButtonElement>("#undoButton")!.addEventListener("click", () => {
+  if (lines.length > 0) {
+    const lastLine = lines.pop();
+    redoStack.push(lastLine!);
+    canvas.dispatchEvent(new Event("drawing-changed"));
+  }
+});
+
+document.querySelector<HTMLButtonElement>("#redoButton")!.addEventListener("click", () => {
+  if (redoStack.length > 0) {
+    const lastLine = redoStack.pop();
+    lines.push(lastLine!);
+    canvas.dispatchEvent(new Event("drawing-changed"));
+  }
 });
