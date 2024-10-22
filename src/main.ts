@@ -100,38 +100,45 @@ class StickerPreview {
     }
 }
 
-class Sticker {
+class TransformableSticker {
     private x: number;
     private y: number;
+    private rotation: number;
     private sticker: string;
 
     constructor(x: number, y: number, sticker: string) {
         this.x = x;
         this.y = y;
+        this.rotation = 0;
         this.sticker = sticker;
     }
 
-    drag(x: number, y: number) {
+    drag(x: number, y: number, rotation: number) {
         this.x = x;
         this.y = y;
+        this.rotation = rotation;
     }
 
     display(ctx: CanvasRenderingContext2D) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.rotation);
         ctx.font = "30px Arial";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillStyle = "black";
-        ctx.fillText(this.sticker, this.x, this.y);
+        ctx.fillText(this.sticker, 0, 0);
+        ctx.restore();
     }
 }
 
 const canvas = document.querySelector<HTMLCanvasElement>("#myCanvas")!;
 const ctx = canvas.getContext("2d")!;
 let drawing = false;
-let lines: (MarkerLine | Sticker)[] = [];
-let redoStack: (MarkerLine | Sticker)[] = [];
+let lines: (MarkerLine | Sticker | TransformableSticker)[] = [];
+let redoStack: (MarkerLine | Sticker | TransformableSticker)[] = [];
 let currentLine: MarkerLine | null = null;
-let currentSticker: Sticker | null = null;
+let currentSticker: Sticker | TransformableSticker | null = null;
 let currentThickness = 2; // Default to thin
 let toolPreview: ToolPreview | StickerPreview | null = null;
 let currentStickerType: string | null = null;
@@ -191,7 +198,7 @@ canvas.addEventListener("mousedown", (event) => {
   const x = event.clientX - canvas.offsetLeft;
   const y = event.clientY - canvas.offsetTop;
   if (currentStickerType) {
-    currentSticker = new Sticker(x, y, currentStickerType);
+    currentSticker = new TransformableSticker(x, y, currentStickerType);
     lines.push(currentSticker);
     toolPreview = null; // Hide tool preview while drawing
   } else {
@@ -211,11 +218,12 @@ canvas.addEventListener("mouseup", () => {
 canvas.addEventListener("mousemove", (event) => {
   const x = event.clientX - canvas.offsetLeft;
   const y = event.clientY - canvas.offsetTop;
+  const rotation = Math.atan2(y - canvas.height / 2, x - canvas.width / 2); // Example rotation calculation
   if (drawing && currentLine) {
     currentLine.drag(x, y);
     canvas.dispatchEvent(new Event("drawing-changed"));
   } else if (drawing && currentSticker) {
-    currentSticker.drag(x, y);
+    (currentSticker as TransformableSticker).drag(x, y, rotation);
     canvas.dispatchEvent(new Event("drawing-changed"));
   } else {
     if (currentStickerType) {
