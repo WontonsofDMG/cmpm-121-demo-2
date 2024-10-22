@@ -12,29 +12,54 @@ app.innerHTML = `
   <button id="redoButton">Redo</button>
 `;
 
+class MarkerLine {
+    private points: { x: number, y: number }[] = [];
+
+    constructor(initialX: number, initialY: number) {
+        this.points.push({ x: initialX, y: initialY });
+    }
+
+    drag(x: number, y: number) {
+        this.points.push({ x, y });
+    }
+
+    display(ctx: CanvasRenderingContext2D) {
+        if (this.points.length < 2) return;
+
+        ctx.beginPath();
+        ctx.moveTo(this.points[0].x, this.points[0].y);
+        for (let i = 1; i < this.points.length; i++) {
+            ctx.lineTo(this.points[i].x, this.points[i].y);
+        }
+        ctx.stroke();
+    }
+}
+
 const canvas = document.querySelector<HTMLCanvasElement>("#myCanvas")!;
 const ctx = canvas.getContext("2d")!;
 let drawing = false;
-let lines: { x: number, y: number }[][] = [];
-let redoStack: { x: number, y: number }[][] = [];
-let currentLine: { x: number, y: number }[] = [];
+let lines: MarkerLine[] = [];
+let redoStack: MarkerLine[] = [];
+let currentLine: MarkerLine | null = null;
 
-canvas.addEventListener("mousedown", () => {
+canvas.addEventListener("mousedown", (event) => {
   drawing = true;
-  currentLine = [];
+  const x = event.clientX - canvas.offsetLeft;
+  const y = event.clientY - canvas.offsetTop;
+  currentLine = new MarkerLine(x, y);
   lines.push(currentLine);
 });
 
 canvas.addEventListener("mouseup", () => {
   drawing = false;
-  ctx.beginPath();
+  currentLine = null;
 });
 
 canvas.addEventListener("mousemove", (event) => {
-  if (!drawing) return;
+  if (!drawing || !currentLine) return;
   const x = event.clientX - canvas.offsetLeft;
   const y = event.clientY - canvas.offsetTop;
-  currentLine.push({ x, y });
+  currentLine.drag(x, y);
   canvas.dispatchEvent(new Event("drawing-changed"));
 });
 
@@ -43,17 +68,7 @@ canvas.addEventListener("drawing-changed", () => {
   ctx.lineWidth = 2;
   ctx.lineCap = "round";
   ctx.strokeStyle = "black";
-  lines.forEach(line => {
-    ctx.beginPath();
-    line.forEach((point, index) => {
-      if (index === 0) {
-        ctx.moveTo(point.x, point.y);
-      } else {
-        ctx.lineTo(point.x, point.y);
-      }
-    });
-    ctx.stroke();
-  });
+  lines.forEach(line => line.display(ctx));
 });
 
 document.querySelector<HTMLButtonElement>("#clearButton")!.addEventListener("click", () => {
