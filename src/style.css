@@ -85,6 +85,10 @@ button:focus-visible {
   border: 1px solid black;
 }
 
+.selectedTool {
+  border: 2px solid #646cff;
+}
+
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;

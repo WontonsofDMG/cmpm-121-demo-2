@@ -7,6 +7,10 @@ document.title = APP_NAME;
 app.innerHTML = `
   <h1>${APP_NAME}</h1>
   <canvas id="myCanvas" width="256" height="256"></canvas>
+  <div>
+    <button id="thinButton">Thin</button>
+    <button id="thickButton">Thick</button>
+  </div>
   <button id="clearButton">Clear</button>
   <button id="undoButton">Undo</button>
   <button id="redoButton">Redo</button>
@@ -14,9 +18,11 @@ app.innerHTML = `
 
 class MarkerLine {
     private points: { x: number, y: number }[] = [];
+    private thickness: number;
 
-    constructor(initialX: number, initialY: number) {
+    constructor(initialX: number, initialY: number, thickness: number) {
         this.points.push({ x: initialX, y: initialY });
+        this.thickness = thickness;
     }
 
     drag(x: number, y: number) {
@@ -31,6 +37,7 @@ class MarkerLine {
         for (let i = 1; i < this.points.length; i++) {
             ctx.lineTo(this.points[i].x, this.points[i].y);
         }
+        ctx.lineWidth = this.thickness;
         ctx.stroke();
     }
 }
@@ -41,12 +48,25 @@ let drawing = false;
 let lines: MarkerLine[] = [];
 let redoStack: MarkerLine[] = [];
 let currentLine: MarkerLine | null = null;
+let currentThickness = 2; // Default to thin
+
+document.querySelector<HTMLButtonElement>("#thinButton")!.addEventListener("click", () => {
+  currentThickness = 2;
+  document.querySelector("#thinButton")!.classList.add("selectedTool");
+  document.querySelector("#thickButton")!.classList.remove("selectedTool");
+});
+
+document.querySelector<HTMLButtonElement>("#thickButton")!.addEventListener("click", () => {
+  currentThickness = 5;
+  document.querySelector("#thickButton")!.classList.add("selectedTool");
+  document.querySelector("#thinButton")!.classList.remove("selectedTool");
+});
 
 canvas.addEventListener("mousedown", (event) => {
   drawing = true;
   const x = event.clientX - canvas.offsetLeft;
   const y = event.clientY - canvas.offsetTop;
-  currentLine = new MarkerLine(x, y);
+  currentLine = new MarkerLine(x, y, currentThickness);
   lines.push(currentLine);
 });
 
@@ -65,7 +85,6 @@ canvas.addEventListener("mousemove", (event) => {
 
 canvas.addEventListener("drawing-changed", () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.lineWidth = 2;
   ctx.lineCap = "round";
   ctx.strokeStyle = "black";
   lines.forEach(line => line.display(ctx));
