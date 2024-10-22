@@ -42,6 +42,30 @@ class MarkerLine {
     }
 }
 
+class ToolPreview {
+    private x: number;
+    private y: number;
+    public thickness: number;
+
+    constructor(x: number, y: number, thickness: number) {
+        this.x = x;
+        this.y = y;
+        this.thickness = thickness;
+    }
+
+    move(x: number, y: number) {
+        this.x = x;
+        this.y = y;
+    }
+
+    draw(ctx: CanvasRenderingContext2D) {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.thickness / 2, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+        ctx.fill();
+    }
+}
+
 const canvas = document.querySelector<HTMLCanvasElement>("#myCanvas")!;
 const ctx = canvas.getContext("2d")!;
 let drawing = false;
@@ -49,6 +73,7 @@ let lines: MarkerLine[] = [];
 let redoStack: MarkerLine[] = [];
 let currentLine: MarkerLine | null = null;
 let currentThickness = 2; // Default to thin
+let toolPreview: ToolPreview | null = null;
 
 document.querySelector<HTMLButtonElement>("#thinButton")!.addEventListener("click", () => {
   currentThickness = 2;
@@ -68,6 +93,8 @@ canvas.addEventListener("mousedown", (event) => {
   const y = event.clientY - canvas.offsetTop;
   currentLine = new MarkerLine(x, y, currentThickness);
   lines.push(currentLine);
+  toolPreview = null; // Hide tool preview while drawing
+  canvas.dispatchEvent(new Event("drawing-changed")); // Ensure the canvas is updated immediately
 });
 
 canvas.addEventListener("mouseup", () => {
@@ -76,11 +103,19 @@ canvas.addEventListener("mouseup", () => {
 });
 
 canvas.addEventListener("mousemove", (event) => {
-  if (!drawing || !currentLine) return;
   const x = event.clientX - canvas.offsetLeft;
   const y = event.clientY - canvas.offsetTop;
-  currentLine.drag(x, y);
-  canvas.dispatchEvent(new Event("drawing-changed"));
+  if (drawing && currentLine) {
+    currentLine.drag(x, y);
+    canvas.dispatchEvent(new Event("drawing-changed"));
+  } else {
+    if (!toolPreview || toolPreview.thickness !== currentThickness) {
+      toolPreview = new ToolPreview(x, y, currentThickness);
+    } else {
+      toolPreview.move(x, y);
+    }
+    canvas.dispatchEvent(new Event("tool-moved"));
+  }
 });
 
 canvas.addEventListener("drawing-changed", () => {
@@ -88,6 +123,16 @@ canvas.addEventListener("drawing-changed", () => {
   ctx.lineCap = "round";
   ctx.strokeStyle = "black";
   lines.forEach(line => line.display(ctx));
+});
+
+canvas.addEventListener("tool-moved", () => {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.lineCap = "round";
+  ctx.strokeStyle = "black";
+  lines.forEach(line => line.display(ctx));
+  if (toolPreview && !drawing) {
+    toolPreview.draw(ctx);
+  }
 });
 
 document.querySelector<HTMLButtonElement>("#clearButton")!.addEventListener("click", () => {
