@@ -17,15 +17,21 @@ app.innerHTML = `
   <button id="undoButton">Undo</button>
   <button id="redoButton">Redo</button>
   <button id="exportButton">Export</button>
+  <div>
+    <label for="hueSlider">Hue:</label>
+    <input type="range" id="hueSlider" min="0" max="360" value="0" style="background: black;">
+  </div>
 `;
 
 class DinoDrawer {
     private points: { x: number, y: number }[] = [];
     private thickness: number;
+    private hue: number;
 
-    constructor(initialX: number, initialY: number, thickness: number) {
+    constructor(initialX: number, initialY: number, thickness: number, hue: number) {
         this.points.push({ x: initialX, y: initialY });
         this.thickness = thickness;
+        this.hue = hue;
     }
 
     drag(x: number, y: number) {
@@ -41,6 +47,7 @@ class DinoDrawer {
             ctx.lineTo(this.points[i].x, this.points[i].y);
         }
         ctx.lineWidth = this.thickness;
+        ctx.strokeStyle = this.hue === 0 ? "black" : `hsl(${this.hue}, 100%, 50%)`;
         ctx.stroke();
     }
 }
@@ -49,11 +56,13 @@ class ToolPreview {
     private x: number;
     private y: number;
     public thickness: number;
+    private hue: number;
 
-    constructor(x: number, y: number, thickness: number) {
+    constructor(x: number, y: number, thickness: number, hue: number) {
         this.x = x;
         this.y = y;
         this.thickness = thickness;
+        this.hue = hue;
     }
 
     move(x: number, y: number) {
@@ -64,7 +73,7 @@ class ToolPreview {
     draw(ctx: CanvasRenderingContext2D) {
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.thickness / 2, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+        ctx.fillStyle = this.hue === 0 ? "black" : `hsl(${this.hue}, 100%, 50%)`;
         ctx.fill();
     }
 }
@@ -73,11 +82,13 @@ class StickerPreview {
     private x: number;
     private y: number;
     private sticker: string;
+    private hue: number;
 
-    constructor(x: number, y: number, sticker: string) {
+    constructor(x: number, y: number, sticker: string, hue: number) {
         this.x = x;
         this.y = y;
         this.sticker = sticker;
+        this.hue = hue;
     }
 
     move(x: number, y: number) {
@@ -89,7 +100,7 @@ class StickerPreview {
         ctx.font = "40px Arial"; // Adjusted size for better usability
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillStyle = "black";
+        ctx.fillStyle = this.hue === 0 ? "black" : `hsl(${this.hue}, 100%, 50%)`;
         ctx.fillText(this.sticker, this.x, this.y);
     }
 
@@ -105,14 +116,16 @@ class DinoSticker {
     private y: number;
     private rotation: number;
     private sticker: string;
+    private hue: number;
 
-    constructor(x: number, y: number, sticker: string) {
+    constructor(x: number, y: number, sticker: string, hue: number) {
         this.initialX = x;
         this.initialY = y;
         this.x = x;
         this.y = y;
         this.rotation = 0;
         this.sticker = sticker;
+        this.hue = hue;
     }
 
     drag(x: number, y: number) {
@@ -130,7 +143,7 @@ class DinoSticker {
         ctx.font = "40px Arial"; // Adjusted size for better usability
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillStyle = "black";
+        ctx.fillStyle = this.hue === 0 ? "black" : `hsl(${this.hue}, 100%, 50%)`;
         ctx.fillText(this.sticker, 0, 0);
         ctx.restore();
     }
@@ -148,6 +161,7 @@ let toolPreview: ToolPreview | StickerPreview | null = null;
 let currentStickerType: string | null = null;
 let initialX = 0;
 let initialY = 0;
+let currentHue = 0; // Default hue
 const stickers = ["🦖", "🦕", "🌟", "🔥", "🌈"]; // Updated example emoji selection
 
 const renderStickers = () => {
@@ -193,16 +207,27 @@ document.querySelector<HTMLButtonElement>("#thickButton")!.addEventListener("cli
   document.querySelectorAll(".stickerButton").forEach(btn => btn.classList.remove("selectedTool"));
 });
 
+document.querySelector<HTMLInputElement>("#hueSlider")!.addEventListener("input", (event) => {
+  currentHue = parseInt((event.target as HTMLInputElement).value);
+  const hueSlider = event.target as HTMLInputElement;
+  if (currentHue === 0) {
+    hueSlider.style.background = "black";
+  } else {
+    hueSlider.style.background = `hsl(${currentHue}, 100%, 50%)`;
+  }
+  canvas.dispatchEvent(new Event("tool-moved"));
+});
+
 canvas.addEventListener("mousedown", (event) => {
   drawing = true;
   initialX = event.clientX - canvas.offsetLeft;
   initialY = event.clientY - canvas.offsetTop;
   if (currentStickerType) {
-    currentSticker = new DinoSticker(initialX, initialY, currentStickerType);
+    currentSticker = new DinoSticker(initialX, initialY, currentStickerType, currentHue);
     lines.push(currentSticker);
     toolPreview = null; // Hide tool preview while drawing
   } else {
-    currentLine = new DinoDrawer(initialX, initialY, currentThickness);
+    currentLine = new DinoDrawer(initialX, initialY, currentThickness, currentHue);
     lines.push(currentLine);
     toolPreview = null; // Hide tool preview while drawing
   }
@@ -227,13 +252,13 @@ canvas.addEventListener("mousemove", (event) => {
   } else {
     if (currentStickerType) {
       if (!toolPreview || !(toolPreview instanceof StickerPreview) || (toolPreview as StickerPreview).getSticker() !== currentStickerType) {
-        toolPreview = new StickerPreview(x, y, currentStickerType);
+        toolPreview = new StickerPreview(x, y, currentStickerType, currentHue);
       } else {
         toolPreview.move(x, y);
       }
     } else {
       if (!toolPreview || !(toolPreview instanceof ToolPreview) || (toolPreview as ToolPreview).thickness !== currentThickness) {
-        toolPreview = new ToolPreview(x, y, currentThickness);
+        toolPreview = new ToolPreview(x, y, currentThickness, currentHue);
       } else {
         toolPreview.move(x, y);
       }
@@ -245,14 +270,12 @@ canvas.addEventListener("mousemove", (event) => {
 canvas.addEventListener("drawing-changed", () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.lineCap = "round";
-  ctx.strokeStyle = "black";
   lines.forEach(line => line.display(ctx));
 });
 
 canvas.addEventListener("tool-moved", () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.lineCap = "round";
-  ctx.strokeStyle = "black";
   lines.forEach(line => line.display(ctx));
   if (toolPreview && !drawing) {
     toolPreview.draw(ctx);
