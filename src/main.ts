@@ -16,6 +16,7 @@ app.innerHTML = `
   <button id="clearButton">Clear</button>
   <button id="undoButton">Undo</button>
   <button id="redoButton">Redo</button>
+  <button id="exportButton">Export</button>
 `;
 
 class MarkerLine {
@@ -278,4 +279,21 @@ document.querySelector<HTMLButtonElement>("#redoButton")!.addEventListener("clic
     lines.push(lastLine!);
     canvas.dispatchEvent(new Event("drawing-changed"));
   }
+});
+
+document.querySelector<HTMLButtonElement>("#exportButton")!.addEventListener("click", () => {
+  const exportCanvas = document.createElement("canvas");
+  exportCanvas.width = 1024;
+  exportCanvas.height = 1024;
+  const exportCtx = exportCanvas.getContext("2d")!;
+  exportCtx.scale(4, 4); // Scale the context to 4x
+
+  // Draw all lines and stickers on the export canvas
+  lines.forEach(line => line.display(exportCtx));
+
+  // Trigger download
+  const link = document.createElement("a");
+  link.download = "drawing.png";
+  link.href = exportCanvas.toDataURL("image/png");
+  link.click();
 });
