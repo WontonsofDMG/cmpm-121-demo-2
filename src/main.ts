@@ -11,11 +11,8 @@ app.innerHTML = `
     <button id="thinButton">Thin</button>
     <button id="thickButton">Thick</button>
   </div>
-  <div>
-    <button id="sticker1Button">🦖</button>
-    <button id="sticker2Button">🦕</button>
-    <button id="sticker3Button">❤️</button>
-  </div>
+  <div id="stickerButtons"></div>
+  <button id="customStickerButton">Add Custom Sticker</button>
   <button id="clearButton">Clear</button>
   <button id="undoButton">Undo</button>
   <button id="redoButton">Redo</button>
@@ -101,27 +98,33 @@ class StickerPreview {
 }
 
 class TransformableSticker {
+    private initialX: number;
+    private initialY: number;
     private x: number;
     private y: number;
     private rotation: number;
     private sticker: string;
 
     constructor(x: number, y: number, sticker: string) {
+        this.initialX = x;
+        this.initialY = y;
         this.x = x;
         this.y = y;
         this.rotation = 0;
         this.sticker = sticker;
     }
 
-    drag(x: number, y: number, rotation: number) {
+    drag(x: number, y: number) {
         this.x = x;
         this.y = y;
-        this.rotation = rotation;
+        const dx = x - this.initialX;
+        const dy = y - this.initialY;
+        this.rotation = Math.atan2(dy, dx);
     }
 
     display(ctx: CanvasRenderingContext2D) {
         ctx.save();
-        ctx.translate(this.x, this.y);
+        ctx.translate(this.initialX, this.initialY);
         ctx.rotate(this.rotation);
         ctx.font = "30px Arial";
         ctx.textAlign = "center";
@@ -135,22 +138,50 @@ class TransformableSticker {
 const canvas = document.querySelector<HTMLCanvasElement>("#myCanvas")!;
 const ctx = canvas.getContext("2d")!;
 let drawing = false;
-let lines: (MarkerLine | Sticker | TransformableSticker)[] = [];
-let redoStack: (MarkerLine | Sticker | TransformableSticker)[] = [];
+let lines: (MarkerLine | TransformableSticker)[] = [];
+let redoStack: (MarkerLine | TransformableSticker)[] = [];
 let currentLine: MarkerLine | null = null;
-let currentSticker: Sticker | TransformableSticker | null = null;
+let currentSticker: TransformableSticker | null = null;
 let currentThickness = 2; // Default to thin
 let toolPreview: ToolPreview | StickerPreview | null = null;
 let currentStickerType: string | null = null;
+let initialX = 0;
+let initialY = 0;
+const stickers = ["🦖", "🦕", "❤️"];
+
+const renderStickers = () => {
+  const stickerButtonsDiv = document.querySelector<HTMLDivElement>("#stickerButtons")!;
+  stickerButtonsDiv.innerHTML = stickers.map((sticker, index) => `
+    <button class="stickerButton" data-index="${index}">${sticker}</button>
+  `).join("");
+  document.querySelectorAll<HTMLButtonElement>(".stickerButton").forEach(button => {
+    button.addEventListener("click", () => {
+      currentStickerType = stickers[parseInt(button.dataset.index!)];
+      document.querySelectorAll(".stickerButton").forEach(btn => btn.classList.remove("selectedTool"));
+      button.classList.add("selectedTool");
+      document.querySelector("#thinButton")!.classList.remove("selectedTool");
+      document.querySelector("#thickButton")!.classList.remove("selectedTool");
+      canvas.dispatchEvent(new Event("tool-moved"));
+    });
+  });
+};
+
+renderStickers();
+
+document.querySelector<HTMLButtonElement>("#customStickerButton")!.addEventListener("click", () => {
+  const newSticker = prompt("Enter your custom sticker:", "⭐");
+  if (newSticker) {
+    stickers.push(newSticker);
+    renderStickers();
+  }
+});
 
 document.querySelector<HTMLButtonElement>("#thinButton")!.addEventListener("click", () => {
   currentThickness = 2;
   currentStickerType = null;
   document.querySelector("#thinButton")!.classList.add("selectedTool");
   document.querySelector("#thickButton")!.classList.remove("selectedTool");
-  document.querySelector("#sticker1Button")!.classList.remove("selectedTool");
-  document.querySelector("#sticker2Button")!.classList.remove("selectedTool");
-  document.querySelector("#sticker3Button")!.classList.remove("selectedTool");
+  document.querySelectorAll(".stickerButton").forEach(btn => btn.classList.remove("selectedTool"));
 });
 
 document.querySelector<HTMLButtonElement>("#thickButton")!.addEventListener("click", () => {
@@ -158,51 +189,19 @@ document.querySelector<HTMLButtonElement>("#thickButton")!.addEventListener("cli
   currentStickerType = null;
   document.querySelector("#thickButton")!.classList.add("selectedTool");
   document.querySelector("#thinButton")!.classList.remove("selectedTool");
-  document.querySelector("#sticker1Button")!.classList.remove("selectedTool");
-  document.querySelector("#sticker2Button")!.classList.remove("selectedTool");
-  document.querySelector("#sticker3Button")!.classList.remove("selectedTool");
-});
-
-document.querySelector<HTMLButtonElement>("#sticker1Button")!.addEventListener("click", () => {
-  currentStickerType = "🦖";
-  document.querySelector("#sticker1Button")!.classList.add("selectedTool");
-  document.querySelector("#sticker2Button")!.classList.remove("selectedTool");
-  document.querySelector("#sticker3Button")!.classList.remove("selectedTool");
-  document.querySelector("#thinButton")!.classList.remove("selectedTool");
-  document.querySelector("#thickButton")!.classList.remove("selectedTool");
-  canvas.dispatchEvent(new Event("tool-moved"));
-});
-
-document.querySelector<HTMLButtonElement>("#sticker2Button")!.addEventListener("click", () => {
-  currentStickerType = "🦕";
-  document.querySelector("#sticker2Button")!.classList.add("selectedTool");
-  document.querySelector("#sticker1Button")!.classList.remove("selectedTool");
-  document.querySelector("#sticker3Button")!.classList.remove("selectedTool");
-  document.querySelector("#thinButton")!.classList.remove("selectedTool");
-  document.querySelector("#thickButton")!.classList.remove("selectedTool");
-  canvas.dispatchEvent(new Event("tool-moved"));
-});
-
-document.querySelector<HTMLButtonElement>("#sticker3Button")!.addEventListener("click", () => {
-  currentStickerType = "❤️";
-  document.querySelector("#sticker3Button")!.classList.add("selectedTool");
-  document.querySelector("#sticker1Button")!.classList.remove("selectedTool");
-  document.querySelector("#sticker2Button")!.classList.remove("selectedTool");
-  document.querySelector("#thinButton")!.classList.remove("selectedTool");
-  document.querySelector("#thickButton")!.classList.remove("selectedTool");
-  canvas.dispatchEvent(new Event("tool-moved"));
+  document.querySelectorAll<HTMLButtonElement>(".stickerButton").forEach((btn: HTMLButtonElement) => btn.classList.remove("selectedTool"));
 });
 
 canvas.addEventListener("mousedown", (event) => {
   drawing = true;
-  const x = event.clientX - canvas.offsetLeft;
-  const y = event.clientY - canvas.offsetTop;
+  initialX = event.clientX - canvas.offsetLeft;
+  initialY = event.clientY - canvas.offsetTop;
   if (currentStickerType) {
-    currentSticker = new TransformableSticker(x, y, currentStickerType);
+    currentSticker = new TransformableSticker(initialX, initialY, currentStickerType);
     lines.push(currentSticker);
     toolPreview = null; // Hide tool preview while drawing
   } else {
-    currentLine = new MarkerLine(x, y, currentThickness);
+    currentLine = new MarkerLine(initialX, initialY, currentThickness);
     lines.push(currentLine);
     toolPreview = null; // Hide tool preview while drawing
   }
@@ -218,12 +217,11 @@ canvas.addEventListener("mouseup", () => {
 canvas.addEventListener("mousemove", (event) => {
   const x = event.clientX - canvas.offsetLeft;
   const y = event.clientY - canvas.offsetTop;
-  const rotation = Math.atan2(y - canvas.height / 2, x - canvas.width / 2); // Example rotation calculation
   if (drawing && currentLine) {
     currentLine.drag(x, y);
     canvas.dispatchEvent(new Event("drawing-changed"));
   } else if (drawing && currentSticker) {
-    (currentSticker as TransformableSticker).drag(x, y, rotation);
+    (currentSticker as TransformableSticker).drag(x, y);
     canvas.dispatchEvent(new Event("drawing-changed"));
   } else {
     if (currentStickerType) {
