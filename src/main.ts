@@ -19,7 +19,7 @@ app.innerHTML = `
   <button id="exportButton">Export</button>
 `;
 
-class MarkerLine {
+class DinoDrawer {
     private points: { x: number, y: number }[] = [];
     private thickness: number;
 
@@ -86,7 +86,7 @@ class StickerPreview {
     }
 
     draw(ctx: CanvasRenderingContext2D) {
-        ctx.font = "30px Arial";
+        ctx.font = "40px Arial"; // Adjusted size for better usability
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillStyle = "black";
@@ -98,7 +98,7 @@ class StickerPreview {
     }
 }
 
-class TransformableSticker {
+class DinoSticker {
     private initialX: number;
     private initialY: number;
     private x: number;
@@ -127,7 +127,7 @@ class TransformableSticker {
         ctx.save();
         ctx.translate(this.initialX, this.initialY);
         ctx.rotate(this.rotation);
-        ctx.font = "30px Arial";
+        ctx.font = "40px Arial"; // Adjusted size for better usability
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillStyle = "black";
@@ -139,16 +139,16 @@ class TransformableSticker {
 const canvas = document.querySelector<HTMLCanvasElement>("#myCanvas")!;
 const ctx = canvas.getContext("2d")!;
 let drawing = false;
-let lines: (MarkerLine | TransformableSticker)[] = [];
-let redoStack: (MarkerLine | TransformableSticker)[] = [];
-let currentLine: MarkerLine | null = null;
-let currentSticker: TransformableSticker | null = null;
-let currentThickness = 2; // Default to thin
+let lines: (DinoDrawer | DinoSticker)[] = [];
+let redoStack: (DinoDrawer | DinoSticker)[] = [];
+let currentLine: DinoDrawer | null = null;
+let currentSticker: DinoSticker | null = null;
+let currentThickness = 1; // Adjusted thin marker thickness
 let toolPreview: ToolPreview | StickerPreview | null = null;
 let currentStickerType: string | null = null;
 let initialX = 0;
 let initialY = 0;
-const stickers = ["🦖", "🦕", "❤️"];
+const stickers = ["🦖", "🦕", "🌟", "🔥", "🌈"]; // Updated example emoji selection
 
 const renderStickers = () => {
   const stickerButtonsDiv = document.querySelector<HTMLDivElement>("#stickerButtons")!;
@@ -178,7 +178,7 @@ document.querySelector<HTMLButtonElement>("#customStickerButton")!.addEventListe
 });
 
 document.querySelector<HTMLButtonElement>("#thinButton")!.addEventListener("click", () => {
-  currentThickness = 2;
+  currentThickness = 1; // Adjusted thin marker thickness
   currentStickerType = null;
   document.querySelector("#thinButton")!.classList.add("selectedTool");
   document.querySelector("#thickButton")!.classList.remove("selectedTool");
@@ -190,7 +190,7 @@ document.querySelector<HTMLButtonElement>("#thickButton")!.addEventListener("cli
   currentStickerType = null;
   document.querySelector("#thickButton")!.classList.add("selectedTool");
   document.querySelector("#thinButton")!.classList.remove("selectedTool");
-  document.querySelectorAll<HTMLButtonElement>(".stickerButton").forEach((btn: HTMLButtonElement) => btn.classList.remove("selectedTool"));
+  document.querySelectorAll(".stickerButton").forEach(btn => btn.classList.remove("selectedTool"));
 });
 
 canvas.addEventListener("mousedown", (event) => {
@@ -198,11 +198,11 @@ canvas.addEventListener("mousedown", (event) => {
   initialX = event.clientX - canvas.offsetLeft;
   initialY = event.clientY - canvas.offsetTop;
   if (currentStickerType) {
-    currentSticker = new TransformableSticker(initialX, initialY, currentStickerType);
+    currentSticker = new DinoSticker(initialX, initialY, currentStickerType);
     lines.push(currentSticker);
     toolPreview = null; // Hide tool preview while drawing
   } else {
-    currentLine = new MarkerLine(initialX, initialY, currentThickness);
+    currentLine = new DinoDrawer(initialX, initialY, currentThickness);
     lines.push(currentLine);
     toolPreview = null; // Hide tool preview while drawing
   }
@@ -222,7 +222,7 @@ canvas.addEventListener("mousemove", (event) => {
     currentLine.drag(x, y);
     canvas.dispatchEvent(new Event("drawing-changed"));
   } else if (drawing && currentSticker) {
-    (currentSticker as TransformableSticker).drag(x, y);
+    (currentSticker as DinoSticker).drag(x, y);
     canvas.dispatchEvent(new Event("drawing-changed"));
   } else {
     if (currentStickerType) {

@@ -83,6 +83,7 @@ button:focus-visible {
 
 #myCanvas {
   border: 1px solid black;
+  border-radius: 10px; /* Rounded corners */
 }
 
 .selectedTool {
